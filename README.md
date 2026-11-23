@@ -1,62 +1,162 @@
 # Apple UAE iPhone Duo Stock Monitor
 
-A small Python worker that checks Apple's UAE pickup JSON for iPhone Duo 256GB Star White and Night Sky at four selected Apple Stores and sends Telegram alerts when pickup changes to available.
+A Python automation project that monitors Apple's UAE in-store pickup availability for the iPhone Duo (256GB) and sends Telegram alerts when stock becomes available at selected Apple Stores in Abu Dhabi and Dubai.
 
-## Monitored stores
+**Repository:** [LevonGrig/IphoneDuoChecker](https://github.com/LevonGrig/IphoneDuoChecker)
 
-- Apple Al Maryah Island, Abu Dhabi (`R706`)
-- Apple Yas Mall, Abu Dhabi (`R595`)
-- Apple Dubai Mall, Dubai (`R597`)
-- Apple Mall of the Emirates, Dubai (`R596`)
+## Project overview
 
-## Local setup
+This project demonstrates a practical automation workflow: poll a third-party availability source, normalize the response, persist state, detect changes, and notify a user through Telegram.
 
-1. Use Python 3.11 or newer.
-2. Create a virtual environment and install dependencies:
+### Monitored configurations
 
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   python -m pip install -r requirements.txt
-   ```
+| Model | Storage | Colour | Apple part number |
+|---|---:|---|---|
+| iPhone Duo | 256GB | Star White | `MK244AH/A` |
+| iPhone Duo | 256GB | Night Sky | `MK254AH/A` |
 
-3. Copy `.env.example` to `.env` and enter the newly rotated Telegram token and your private chat ID.
-4. Run the worker:
+### Monitored stores
 
-   ```bash
-   python main.py
-   ```
+| Apple Store | City | Store ID |
+|---|---|---|
+| Al Maryah Island | Abu Dhabi | `R706` |
+| Yas Mall | Abu Dhabi | `R595` |
+| Dubai Mall | Dubai | `R597` |
+| Mall of the Emirates | Dubai | `R596` |
 
-The worker polls Apple approximately every 30 seconds. Telegram commands are `/status`, `/history`, `/ping`, and `/help`.
+The monitor checks the two city pickup searches and evaluates the selected store/colour combinations approximately every 30 seconds.
 
-## Stock-state behavior
+## Features
 
-- Only explicit Apple `pickupDisplay` values of `available` or `unavailable` update stock state.
-- Unknown, malformed, or missing store/product data is not treated as out of stock.
-- SQLite stores state and transition history.
-- Pending restock notifications are retried if Telegram temporarily fails.
-- The first confirmed available observation creates an alert, even if the bot has just started.
+- **Apple pickup monitoring:** requests Apple's UAE pickup availability response for both product configurations.
+- **Change detection:** sends an alert when a configuration is first confirmed available or transitions from unavailable to available.
+- **Telegram commands:** `/status`, `/history`, `/ping`, and `/help`.
+- **SQLite persistence:** saves current stock state, transition history, pending notifications, and Telegram polling offset.
+- **Notification retry:** keeps restock alerts pending if Telegram temporarily fails, then retries them.
+- **Conservative parsing:** unknown or missing product/store data does not get interpreted as out of stock.
+- **Cloud-ready:** designed to run as one persistent worker with a mounted data volume.
 
-Apple's pickup endpoint is an undocumented website endpoint, not a supported public API. Apple can change its response format or limit automated traffic. Keep the polling interval at or above 30 seconds and use the result as an alert, not a reservation guarantee.
+## Architecture
 
-## Railway deployment
+```text
+Apple UAE pickup endpoint
+          |
+          v
+  Python async monitor
+          |
+          v
+  Availability parser
+          |
+          v
+  Stock state / transitions -----> SQLite database
+          |
+          v
+  Telegram notification worker
+          |
+          v
+  Personal Telegram chat
 
-1. Push this project to a **private** GitHub repository. Do not commit `.env`, your bot token, or the SQLite database.
-2. In Railway, create a project and choose **Deploy from GitHub Repo**. Connect the private repository.
-3. In the service settings, set the Start Command to:
+Telegram commands -----> Telegram polling -----> /status, /history, /ping, /help
+```
 
-   ```bash
-   python main.py
-   ```
+## Technology stack
 
-4. Add these service variables:
+- Python 3.11+
+- `httpx` for asynchronous HTTP requests
+- Telegram Bot API for alerts and commands
+- SQLite for persistent state and event history
+- `python-dotenv` for local environment configuration
+- Railway for optional always-on cloud hosting
 
-   - `TELEGRAM_BOT_TOKEN` = your newly rotated BotFather token
-   - `TELEGRAM_CHAT_ID` = your private Telegram chat ID
-   - `CHECK_INTERVAL` = `30`
-   - `DATA_DIR` = `/app/data`
+## Run locally
 
-5. Add a Railway Volume and set its mount path to `/app/data`. This keeps the SQLite database across deployments.
-6. Deploy. Check the service logs for `Monitor started` and the scan messages. Then send `/status` to your Telegram bot.
+### 1. Clone the repository
 
-Use one running Railway replica only: two copies would poll Apple twice and compete for Telegram `getUpdates`.
+```bash
+git clone https://github.com/LevonGrig/IphoneDuoChecker.git
+cd IphoneDuoChecker
+```
+
+### 2. Create a virtual environment and install dependencies
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+### 3. Configure environment variables
+
+Copy the example file:
+
+```bash
+cp .env.example .env
+```
+
+Set your own values in `.env`:
+
+```env
+TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_CHAT_ID=your_private_chat_id
+CHECK_INTERVAL=30
+DATA_DIR=data
+```
+
+Never commit `.env` or share your Telegram bot token. The real `.env` file is excluded by `.gitignore`.
+
+### 4. Start the monitor
+
+```bash
+python main.py
+```
+
+The bot sends a startup notification and begins monitoring. Use the following commands in your private Telegram chat:
+
+| Command | Description |
+|---|---|
+| `/status` | Current status for all monitored store/colour combinations |
+| `/history` | Recent availability and sold-out events |
+| `/ping` | Confirm that the bot is responding |
+| `/help` | Show available commands |
+
+## Tests
+
+Run the automated tests with:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+The tests cover availability response parsing, unknown-status handling, and stock-transition history.
+
+## Deploy to Railway
+
+This application is a long-running worker, not a web server or scheduled job.
+
+1. Create a Railway project and deploy from this public GitHub repository.
+2. Set the start command to `python main.py`.
+3. Add these service variables:
+   - `TELEGRAM_BOT_TOKEN`: your newly generated BotFather token
+   - `TELEGRAM_CHAT_ID`: your private Telegram chat ID
+   - `CHECK_INTERVAL`: `30`
+   - `DATA_DIR`: `/app/data`
+4. Attach a Railway Volume mounted at `/app/data` to preserve the SQLite database across deployments.
+5. Run **one replica only** to avoid duplicate Apple polling and competing Telegram long-polling clients.
+6. Check deployment logs and send `/status` to the bot after it starts.
+
+## Important limitations
+
+- Apple's pickup endpoint is an undocumented endpoint used by its shopping website, not a supported public API. Apple may change its response format, availability fields, or access controls.
+- Availability is only a point-in-time observation. Stock can disappear before checkout; an alert is not a reservation.
+- The monitor uses a 30-second minimum interval and should not be configured for aggressive polling.
+- A missing store, missing part, malformed response, or unknown pickup status must be treated as unknown rather than unavailable.
+
+## Security
+
+- Keep the repository free of real bot tokens, chat credentials, and database files.
+- Store local credentials in `.env`; store cloud credentials in Railway service variables.
+- If a Telegram bot token is exposed in a terminal log, screenshot, chat, or commit, revoke it with BotFather and generate a replacement.
+
+---
+
+Built as a hands-on Python automation and API-integration portfolio project.
