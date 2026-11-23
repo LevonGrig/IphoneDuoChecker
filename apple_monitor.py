@@ -6,7 +6,6 @@ import httpx
 from config import (
     APPLE_PICKUP_URL,
     APPLE_PRODUCT_URL,
-    APPLE_SEARCH_LOCATION,
     PRODUCTS,
     STORES,
 )
@@ -23,8 +22,13 @@ APPLE_HEADERS = {
     "Referer": APPLE_PRODUCT_URL,
 }
 
+CITIES = ("Abu Dhabi", "Dubai")
 
-def parse_pickup_response(payload: dict[str, Any]) -> dict[tuple[str, str], bool | None]:
+
+def parse_pickup_response(
+    payload: dict[str, Any],
+    expected_store_ids: set[str] | None = None,
+) -> dict[tuple[str, str], bool | None]:
     """Convert Apple's pickup JSON into {(store_id, part_number): bool | None}.
 
     True means pickupDisplay='available'; False means 'unavailable';
@@ -39,7 +43,6 @@ def parse_pickup_response(payload: dict[str, Any]) -> dict[tuple[str, str], bool
     body = payload.get("body") or {}
     stores = body.get("stores")
     if not isinstance(stores, list):
-        # Defensive fallback for a previous response shape.
         stores = (
             body.get("content", {})
             .get("pickupMessage", {})
@@ -72,7 +75,8 @@ def parse_pickup_response(payload: dict[str, Any]) -> dict[tuple[str, str], bool
             else:
                 results[(store_id, part_number)] = None
 
-    missing = set(STORES) - returned_store_ids
+    expected = expected_store_ids if expected_store_ids is not None else set(STORES)
+    missing = expected - returned_store_ids
     if missing:
         logger.warning(
             "Apple did not return these expected stores; keeping their previous state: %s",
@@ -83,25 +87,42 @@ def parse_pickup_response(payload: dict[str, Any]) -> dict[tuple[str, str], bool
 
 
 async def fetch_availability(client: httpx.AsyncClient) -> dict[tuple[str, str], bool | None]:
-    """Make one Apple request for both colours and all four selected stores."""
+    """Query each target city separately and merge results for the four selected stores."""
     part_numbers = list(PRODUCTS)
-    params = [
-        ("pl", "true"),
-        ("parts.0", part_numbers[0]),
-        ("parts.1", part_numbers[1]),
-        ("location", APPLE_SEARCH_LOCATION),
-    ]
+    all_results: dict[tuple[str, str], bool | None] = {}
 
-    response = await client.get(
-        APPLE_PICKUP_URL,
-        params=params,
-        headers=APPLE_HEADERS,
-    )
-    response.raise_for_status()
+    for city in CITIES:
+        expected_store_ids = {
+            store_id
+            for store_id, store in STORES.items()
+            if store["city"] == city
+        }
+        params = [
+            ("pl", "true"),
+            ("mts.0", "regular"),
+            ("parts.0", part_numbers[0]),
+            ("parts.1", part_numbers[1]),
+            ("location", city),
+        ]
 
-    try:
-        payload = response.json()
-    except ValueError as exc:
-        raise RuntimeError("Apple returned a non-JSON pickup response") from exc
+        response = await client.get(
+            APPLE_PICKUP_URL,
+            params=params,
+            headers=APPLE_HEADERS,
+        )
+        response.raise_for_status()
 
-    return parse_pickup_response(payload)
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise RuntimeError(
+                f"Apple returned a non-JSON pickup response for {city}"
+            ) from exc
+
+        city_results = parse_pickup_response(
+            payload,
+            expected_store_ids=expected_store_ids,
+        )
+        all_results.update(city_results)
+
+    return all_results
