@@ -148,7 +148,7 @@ This application is a long-running worker, not a web server or scheduled job.
 
 - Apple's pickup endpoint is an undocumented endpoint used by its shopping website, not a supported public API. Apple may change its response format, availability fields, or access controls.
 - Availability is only a point-in-time observation. Stock can disappear before checkout; an alert is not a reservation.
-- The monitor uses a 30-second minimum interval and should not be configured for aggressive polling.
+- The recommended polling interval is 5 minutes. Repeated HTTP 541 responses trigger an automatic cooldown that grows from 15 to 30 to 60 minutes after consecutive blocks. Do not try to bypass Apple's access controls or keep retrying during a block.
 - A missing store, missing part, malformed response, or unknown pickup status must be treated as unknown rather than unavailable.
 
 ## Security
