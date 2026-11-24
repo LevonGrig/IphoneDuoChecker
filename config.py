@@ -6,7 +6,7 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
-CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", "300"))
+CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", "60"))
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 DATABASE_PATH = DATA_DIR / "apple_stock.sqlite3"
 
@@ -14,8 +14,8 @@ APPLE_PICKUP_URL = "https://www.apple.com/ae/shop/retail/pickup-message"
 APPLE_PRODUCT_URL = "https://www.apple.com/ae/shop/buy-iphone/iphone-duo"
 APPLE_SEARCH_LOCATION = "Abu Dhabi"
 
-if CHECK_INTERVAL < 30:
-    raise ValueError("CHECK_INTERVAL must be at least 30 seconds")
+if CHECK_INTERVAL < 60:
+    raise ValueError("CHECK_INTERVAL must be at least 60 seconds")
 
 
 def validate_config() -> None:
