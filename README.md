@@ -24,7 +24,7 @@ This project demonstrates a practical automation workflow: poll a third-party av
 | Dubai Mall | Dubai | `R597` |
 | Mall of the Emirates | Dubai | `R596` |
 
-The monitor checks the two city pickup searches and evaluates the selected store/colour combinations approximately every 30 seconds.
+The monitor checks the two city pickup searches and evaluates the selected store/colour combinations approximately every 5 minutes by default.
 
 ## Features
 
@@ -98,7 +98,7 @@ Set your own values in `.env`:
 ```env
 TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_CHAT_ID=your_private_chat_id
-CHECK_INTERVAL=30
+CHECK_INTERVAL=300
 DATA_DIR=data
 ```
 
@@ -138,7 +138,7 @@ This application is a long-running worker, not a web server or scheduled job.
 3. Add these service variables:
    - `TELEGRAM_BOT_TOKEN`: your newly generated BotFather token
    - `TELEGRAM_CHAT_ID`: your private Telegram chat ID
-   - `CHECK_INTERVAL`: `30`
+   - `CHECK_INTERVAL`: `300`
    - `DATA_DIR`: `/app/data`
 4. Attach a Railway Volume mounted at `/app/data` to preserve the SQLite database across deployments.
 5. Run **one replica only** to avoid duplicate Apple polling and competing Telegram long-polling clients.
