@@ -24,7 +24,7 @@ This project demonstrates a practical automation workflow: poll a third-party av
 | Dubai Mall | Dubai | `R597` |
 | Mall of the Emirates | Dubai | `R596` |
 
-The monitor checks the two city pickup searches and evaluates the selected store/colour combinations approximately every 5 minutes by default.
+The monitor checks the two city pickup searches and evaluates the selected store/colour combinations approximately every 60 seconds by default.
 
 ## Features
 
@@ -98,7 +98,7 @@ Set your own values in `.env`:
 ```env
 TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_CHAT_ID=your_private_chat_id
-CHECK_INTERVAL=300
+CHECK_INTERVAL=60
 DATA_DIR=data
 ```
 
@@ -138,7 +138,7 @@ This application is a long-running worker, not a web server or scheduled job.
 3. Add these service variables:
    - `TELEGRAM_BOT_TOKEN`: your newly generated BotFather token
    - `TELEGRAM_CHAT_ID`: your private Telegram chat ID
-   - `CHECK_INTERVAL`: `300`
+   - `CHECK_INTERVAL`: `60`
    - `DATA_DIR`: `/app/data`
 4. Attach a Railway Volume mounted at `/app/data` to preserve the SQLite database across deployments.
 5. Run **one replica only** to avoid duplicate Apple polling and competing Telegram long-polling clients.
@@ -148,7 +148,7 @@ This application is a long-running worker, not a web server or scheduled job.
 
 - Apple's pickup endpoint is an undocumented endpoint used by its shopping website, not a supported public API. Apple may change its response format, availability fields, or access controls.
 - Availability is only a point-in-time observation. Stock can disappear before checkout; an alert is not a reservation.
-- The recommended polling interval is 5 minutes. Repeated HTTP 541 responses trigger an automatic cooldown that grows from 15 to 30 to 60 minutes after consecutive blocks. Do not try to bypass Apple's access controls or keep retrying during a block.
+- The normal polling interval is 60 seconds by default. Repeated HTTP 541 responses trigger an automatic cooldown that grows from 15 to 30 to 60 minutes after consecutive blocks. During a 541 cooldown, the normal 60-second interval is suspended until the next retry. Do not try to bypass Apple's access controls or keep retrying during a block.
 - A missing store, missing part, malformed response, or unknown pickup status must be treated as unknown rather than unavailable.
 
 ## Security
