@@ -21,7 +21,7 @@ APPLE_541_INITIAL_BACKOFF_SECONDS = 15 * 60
 APPLE_541_MAX_BACKOFF_SECONDS = 60 * 60
 TRANSIENT_ERROR_INITIAL_BACKOFF_SECONDS = 60
 TRANSIENT_ERROR_MAX_BACKOFF_SECONDS = 5 * 60
-RECOMMENDED_CHECK_INTERVAL_SECONDS = 5 * 60
+RECOMMENDED_CHECK_INTERVAL_SECONDS = 60
 
 logging.basicConfig(
     level=logging.INFO,
@@ -242,7 +242,7 @@ async def main() -> None:
         )
         logger.info(
             "Monitor started. Chat ID is configured; credentials are not printed. "
-            "Configured interval=%d seconds; recommended interval is at least %d seconds.",
+            "Configured normal interval=%d seconds; minimum supported interval=%d seconds.",
             CHECK_INTERVAL,
             RECOMMENDED_CHECK_INTERVAL_SECONDS,
         )
