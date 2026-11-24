@@ -6,7 +6,7 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()
-CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", "30"))
+CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", "300"))
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 DATABASE_PATH = DATA_DIR / "apple_stock.sqlite3"
 
